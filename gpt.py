@@ -227,17 +227,9 @@ for iter in range(max_iters):
     optimizer.step()
     
 # save
-checkpoint_path = f'checkpoints/GPT_{pytorch_total_params/1e6:.2f}M.pt'
+checkpoint_path = f'checkpoints/model_{pytorch_total_params/1e6:.2f}M.pt'
 checkpoint = {
     'model_state_dict': model.state_dict(),
-    'optimizer_state_dict': optimizer.state_dict(),
-    'iter': max_iters,
-    'train_loss': loss.item(),
-    'vocab_size': vocab_size,
-    'n_embd': n_embd,
-    'n_layers': n_layers,
-    'n_head': n_head,
-    'block_size': block_size,
 }
 torch.save(checkpoint, checkpoint_path)
 
@@ -246,8 +238,7 @@ model = BigramLanguageModel().to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 checkpoint = torch.load(checkpoint_path, map_location=device)
 model.load_state_dict(checkpoint['model_state_dict'])
-optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-print(f"Loaded checkpoint from iteration {checkpoint['iter']} with last train loss {checkpoint['train_loss']:.4f}")
+print(f"Loaded model from {checkpoint_path}")
 
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
