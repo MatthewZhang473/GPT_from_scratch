@@ -3,23 +3,34 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 # hyperparameters
-batch_size = 64 # how many independent sequences will we process in parallel?
-block_size = 256 # what is the maximum context length for predictions?
+batch_size = 32 # how many independent sequences will we process in parallel?
+block_size = 8 # what is the maximum context length for predictions?
 max_iters = 5000
-eval_interval = 500
-learning_rate = 3e-4
+eval_interval = 300
+learning_rate = 1e-2
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
-n_embd = 384 # 6 heads * 64 dimensions = 384
-n_layers = 6
-n_head = 6
-dropout = 0.2
+n_embd = 32
+n_layers = 4
+n_head = 4
+dropout = 0.05
+# batch_size = 64 # how many independent sequences will we process in parallel?
+# block_size = 256 # what is the maximum context length for predictions?
+# max_iters = 5000
+# eval_interval = 500
+# learning_rate = 3e-4
+# device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# eval_iters = 200
+# n_embd = 384 # 6 heads * 64 dimensions = 384
+# n_layers = 6
+# n_head = 6
+# dropout = 0.2
 # ------------
 
 torch.manual_seed(1337)
 
 # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
-with open('karpathy_GPT_from_scratch/input.txt', 'r', encoding='utf-8') as f:
+with open('input.txt', 'r', encoding='utf-8') as f:
     text = f.read()
 
 # here are all the unique characters that occur in this text
@@ -191,6 +202,8 @@ class BigramLanguageModel(nn.Module):
 
 model = BigramLanguageModel()
 m = model.to(device) # load the model to device
+pytorch_total_params = sum(p.numel() for p in model.parameters())
+print(f'total params = {pytorch_total_params/1e6:.2f}M')
 
 # create a PyTorch optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
@@ -210,6 +223,29 @@ for iter in range(max_iters):
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()
+    
+# save
+checkpoint_path = f'checkpoints/GPT_{pytorch_total_params/1e6:.2f}M.pt'
+checkpoint = {
+    'model_state_dict': model.state_dict(),
+    'optimizer_state_dict': optimizer.state_dict(),
+    'iter': max_iters,
+    'train_loss': loss.item(),
+    'vocab_size': vocab_size,
+    'n_embd': n_embd,
+    'n_layers': n_layers,
+    'n_head': n_head,
+    'block_size': block_size,
+}
+torch.save(checkpoint, checkpoint_path)
+
+# load
+model = BigramLanguageModel().to(device)
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+checkpoint = torch.load(checkpoint_path, map_location=device)
+model.load_state_dict(checkpoint['model_state_dict'])
+optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+print(f"Loaded checkpoint from iteration {checkpoint['iter']} with last train loss {checkpoint['train_loss']:.4f}")
 
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
