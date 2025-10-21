@@ -202,44 +202,47 @@ class BigramLanguageModel(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
         return idx
 
-model = BigramLanguageModel()
-m = model.to(device) # load the model to device
-pytorch_total_params = sum(p.numel() for p in model.parameters())
-print(f'total params = {pytorch_total_params/1e6:.2f}M')
 
-# create a PyTorch optimizer
-optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+if __name__ == "__main__":
 
-for iter in range(max_iters):
+    model = BigramLanguageModel()
+    m = model.to(device) # load the model to device
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    print(f'total params = {pytorch_total_params/1e6:.2f}M')
 
-    # every once in a while evaluate the loss on train and val sets
-    if iter % eval_interval == 0:
-        losses = estimate_loss()
-        print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+    # create a PyTorch optimizer
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
-    # sample a batch of data
-    xb, yb = get_batch('train')
+    for iter in range(max_iters):
 
-    # evaluate the loss
-    logits, loss = model(xb, yb)
-    optimizer.zero_grad(set_to_none=True)
-    loss.backward()
-    optimizer.step()
-    
-# save
-checkpoint_path = f'checkpoints/model_{pytorch_total_params/1e6:.2f}M.pt'
-checkpoint = {
-    'model_state_dict': model.state_dict(),
-}
-torch.save(checkpoint, checkpoint_path)
+        # every once in a while evaluate the loss on train and val sets
+        if iter % eval_interval == 0:
+            losses = estimate_loss()
+            print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 
-# load
-model = BigramLanguageModel().to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
-checkpoint = torch.load(checkpoint_path, map_location=device)
-model.load_state_dict(checkpoint['model_state_dict'])
-print(f"Loaded model from {checkpoint_path}")
+        # sample a batch of data
+        xb, yb = get_batch('train')
 
-# generate from the model
-context = torch.zeros((1, 1), dtype=torch.long, device=device)
-print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
+        # evaluate the loss
+        logits, loss = model(xb, yb)
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        
+    # save
+    checkpoint_path = f'checkpoints/model_{pytorch_total_params/1e6:.2f}M.pt'
+    checkpoint = {
+        'model_state_dict': model.state_dict(),
+    }
+    torch.save(checkpoint, checkpoint_path)
+
+    # load
+    model = BigramLanguageModel().to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    print(f"Loaded model from {checkpoint_path}")
+
+    # generate from the model
+    context = torch.zeros((1, 1), dtype=torch.long, device=device)
+    print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
